@@ -88,18 +88,52 @@ export class AIProviderService {
     });
 
     try {
-      let raw = result.content.trim();
-      // Strip markdown code fences if LLM ignored instructions
-      if (raw.startsWith('```json')) {
-        raw = raw.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-      } else if (raw.startsWith('```')) {
-        raw = raw.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-      const parsed = JSON.parse(raw);
+      const parsed = this.extractFirstJsonObject(result.content);
       return { data: parsed, meta: result };
     } catch (parseErr) {
       console.error('[AIProvider] Erreur parsing JSON LiteLLM:', result.content);
       throw new Error(`La réponse de l'IA n'est pas un JSON valide: ${parseErr.message}`);
+    }
+  }
+
+  static extractFirstJsonObject(rawText) {
+    const trimmed = (rawText || '').trim();
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      const startIdx = trimmed.indexOf('{');
+      if (startIdx === -1) {
+        throw new Error('Aucun objet JSON détecté dans la réponse');
+      }
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+      for (let i = startIdx; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === '\\' && inString) {
+          escape = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = !inString;
+          continue;
+        }
+        if (!inString) {
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              const candidate = trimmed.slice(startIdx, i + 1);
+              return JSON.parse(candidate);
+            }
+          }
+        }
+      }
+      throw new Error('Objet JSON incomplet ou mal formé');
     }
   }
 
