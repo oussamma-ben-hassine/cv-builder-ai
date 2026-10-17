@@ -124,10 +124,10 @@ export function authenticateUser(req, res, next) {
 // Middleware requiring authentication
 export function requireAuth(req, res, next) {
   if (!req.user) {
-    if (req.accepts('html')) {
-      return res.redirect('/auth/login');
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(401).json({ error: 'Non authentifié. Veuillez vous connecter via le SSO.' });
     }
-    return res.status(401).json({ error: 'Non authentifié. Veuillez vous connecter via le SSO.' });
+    return res.redirect('/auth/login');
   }
   next();
 }
