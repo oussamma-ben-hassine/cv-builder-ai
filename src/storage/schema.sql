@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 CREATE TABLE IF NOT EXISTS resumes (
     id VARCHAR(64) PRIMARY KEY,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) NOT NULL,
     title VARCHAR(255) NOT NULL,
     template_id VARCHAR(64) DEFAULT 'modern',
     language VARCHAR(8) DEFAULT 'fr',
@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_resume_versions_resume ON resume_versions(resume_
 CREATE TABLE IF NOT EXISTS ai_conversations (
     id VARCHAR(64) PRIMARY KEY,
     resume_id VARCHAR(64) NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) NOT NULL,
     messages JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
