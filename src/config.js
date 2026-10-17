@@ -26,7 +26,7 @@ export const config = {
     apiKey: process.env.LITELLM_API_KEY || '',
     defaultModel: process.env.LITELLM_MODEL || process.env.LITELLM_DEFAULT_MODEL || 'gemini/gemini-3.1-flash-lite-preview',
     timeout: parseInt(process.env.LITELLM_TIMEOUT || '60000', 10),
-    maxTokens: parseInt(process.env.LITELLM_MAX_TOKENS || '4096', 10),
+    maxTokens: parseInt(process.env.LITELLM_MAX_TOKENS || '8192', 10),
   },
 
   // Database & Storage

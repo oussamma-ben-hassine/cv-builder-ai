@@ -4,6 +4,7 @@ import { OIDCAuthService } from '../src/auth/oidc.js';
 import { SessionManager } from '../src/auth/session.js';
 import { TEMPLATES, renderTemplateHtml } from '../src/templates/registry.js';
 import { DocxGeneratorService } from '../src/export/docx-generator.js';
+import { ResumeLanguageService } from '../src/ai/language-service.js';
 import { db } from '../src/storage/db.js';
 
 const SAMPLE_COMPLEX_RESUME = {
@@ -145,3 +146,30 @@ test('5. Multi-user data isolation in storage layer', async () => {
   // Cleanup test resumes
   await db.deleteResume(userA.id, cvA.id);
 });
+
+test('6. Spoken languages normalization & 6-language / RTL HTML and DOCX rendering', async () => {
+  const heterogeneousLangs = [
+    { language: 'Anglais', proficiency: 'C1' },
+    { langue: 'Arabe', niveau: 'Langue maternelle' },
+    'Espagnol (B2)',
+  ];
+  const normalized = ResumeLanguageService.normalizeSpokenLanguages(heterogeneousLangs, 'fr');
+  assert.equal(normalized.length, 3);
+  assert.equal(normalized[0].name, 'Anglais');
+  assert.equal(normalized[0].level, 'C1');
+  assert.equal(normalized[1].name, 'Arabe');
+  assert.equal(normalized[1].level, 'Langue maternelle');
+  assert.equal(normalized[2].name, 'Espagnol');
+  assert.equal(normalized[2].level, 'B2');
+
+  // Test Arabic RTL HTML rendering
+  const htmlAr = renderTemplateHtml('modern', { ...SAMPLE_COMPLEX_RESUME, languages: heterogeneousLangs }, { language: 'ar' });
+  assert.ok(htmlAr.includes('dir="rtl"'), 'Arabic CV must render with dir="rtl"');
+  assert.ok(htmlAr.includes('الخبرات المهنية'), 'Arabic CV must include localized Arabic section headers');
+  assert.ok(htmlAr.includes('Anglais'), 'Normalized spoken languages must appear in HTML');
+
+  // Test English DOCX generation
+  const docxEn = await DocxGeneratorService.generate(SAMPLE_COMPLEX_RESUME, { language: 'en' });
+  assert.ok(Buffer.isBuffer(docxEn) && docxEn.length > 3000, 'English DOCX must generate valid buffer');
+});
+

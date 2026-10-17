@@ -1,3 +1,5 @@
+import { ResumeLanguageService } from '../ai/language-service.js';
+
 export const TEMPLATES = [
   {
     id: 'modern',
@@ -107,32 +109,42 @@ export function renderTemplateHtml(templateId, resumeData = {}, options = {}) {
   const spacing = options.spacing || styleOpts.spacing || '1.45';
   const hiddenSections = Array.isArray(resumeData?.hiddenSections) ? resumeData.hiddenSections : [];
 
-  const personal = resumeData?.personal || {};
-  const experiences = hiddenSections.includes('experiences') ? [] : (resumeData?.experiences || []);
+  const langCode = options.language || resumeData?.language || 'fr';
+  const langCfg = ResumeLanguageService.getLanguageConfig(langCode);
+  const labels = langCfg.labels;
+  const isRtl = langCfg.isRtl;
+
+  const rawPersonal = resumeData?.personal || resumeData?.personalInfo || {};
+  const personal = {
+    ...rawPersonal,
+    title: rawPersonal.title || rawPersonal.jobTitle || '',
+    website: rawPersonal.website || rawPersonal.portfolio || '',
+  };
+
+  const experiences = hiddenSections.includes('experiences') ? [] : (resumeData?.experiences || []).map(exp => ({
+    ...exp,
+    summary: exp.summary || exp.description || '',
+    highlights: Array.isArray(exp.highlights) && exp.highlights.length > 0
+      ? exp.highlights
+      : [
+          ...(Array.isArray(exp.missions) ? exp.missions : []),
+          ...(Array.isArray(exp.achievements) ? exp.achievements : []),
+        ],
+  }));
   const education = hiddenSections.includes('education') ? [] : (resumeData?.education || []);
   const skills = hiddenSections.includes('skills') ? [] : (resumeData?.skills || []);
-  const languages = hiddenSections.includes('languages') ? [] : (resumeData?.languages || []);
+  const languages = hiddenSections.includes('languages')
+    ? []
+    : ResumeLanguageService.normalizeSpokenLanguages(resumeData?.languages, langCfg.code);
   const certifications = hiddenSections.includes('certifications') ? [] : (resumeData?.certifications || []);
   const projects = hiddenSections.includes('projects') ? [] : (resumeData?.projects || []);
   const customSections = hiddenSections.includes('custom') ? [] : (resumeData?.customSections || []);
 
-  const isEn = resumeData?.language === 'en';
-  const labels = {
-    summary: isEn ? 'Professional Summary' : 'Profil Professionnel',
-    experiences: isEn ? 'Work Experience' : 'Expériences Professionnelles',
-    education: isEn ? 'Education' : 'Formations & Diplômes',
-    skills: isEn ? 'Skills' : 'Compétences',
-    languages: isEn ? 'Languages' : 'Langues',
-    certifications: isEn ? 'Certifications' : 'Certifications',
-    projects: isEn ? 'Notable Projects' : 'Projets',
-    present: isEn ? 'Present' : 'Présent',
-  };
-
-  const fullName = `${personal.firstName || ''} ${personal.lastName || ''}`.trim() || (isEn ? 'Your Name' : 'Votre Nom');
+  const fullName = `${personal.firstName || ''} ${personal.lastName || ''}`.trim() || (langCfg.code === 'en' ? 'Your Name' : 'Votre Nom');
   const showPhoto = personal.photo && tmpl.hasPhoto && templateId !== 'no-photo' && templateId !== 'ats' && templateId !== 'classic' && templateId !== 'minimalist';
 
   const baseCss = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap');
     @page {
       size: A4;
       margin: 12mm 14mm;
@@ -143,11 +155,13 @@ export function renderTemplateHtml(templateId, resumeData = {}, options = {}) {
       padding: 0;
     }
     body {
-      font-family: ${fontFamily};
+      font-family: ${isRtl ? `'Cairo', ${fontFamily}` : fontFamily};
       font-size: ${fontSize};
       line-height: ${spacing};
       color: #1f2937;
       background: #ffffff;
+      direction: ${isRtl ? 'rtl' : 'ltr'};
+      text-align: ${isRtl ? 'right' : 'left'};
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -161,8 +175,9 @@ export function renderTemplateHtml(templateId, resumeData = {}, options = {}) {
     .cv-page {
       width: 210mm;
       min-height: 297mm;
+      height: auto;
       margin: 0 auto;
-      background: #ffffff;
+      background-color: #ffffff;
       padding: 14mm 16mm;
       position: relative;
     }
@@ -174,8 +189,13 @@ export function renderTemplateHtml(templateId, resumeData = {}, options = {}) {
       .cv-page {
         width: 100%;
         min-height: auto;
+        height: auto;
         padding: 0;
         box-shadow: none;
+        background-image: none !important;
+      }
+      section {
+        break-inside: auto;
       }
     }
     @media screen {
@@ -186,6 +206,13 @@ export function renderTemplateHtml(templateId, resumeData = {}, options = {}) {
       .cv-page {
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
         border-radius: 4px;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent calc(297mm - 2px),
+          #94a3b8 calc(297mm - 2px),
+          #94a3b8 297mm
+        );
       }
     }
     .section-title {
@@ -529,7 +556,7 @@ export function renderTemplateHtml(templateId, resumeData = {}, options = {}) {
   }
 
   return `<!DOCTYPE html>
-<html lang="${resumeData.language || 'fr'}">
+<html lang="${langCfg.code}" dir="${isRtl ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(fullName)} - CV</title>

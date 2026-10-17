@@ -74,7 +74,7 @@ export class AIProviderService {
     throw new Error(`Échec appel LiteLLM après ${maxAttempts} tentatives: ${lastError?.message}`);
   }
 
-  static async completeJson({ systemPrompt, userPrompt, temperature = 0.2, model = null }) {
+  static async completeJson({ systemPrompt, userPrompt, temperature = 0.2, model = null, maxTokens = null }) {
     const messages = [
       { role: 'system', content: `${systemPrompt}\n\nIMPORTANT: Tu DOIS répondre exclusivement par un objet JSON valide, sans formatage Markdown, sans balises \`\`\`json.` },
       { role: 'user', content: userPrompt },
@@ -84,6 +84,7 @@ export class AIProviderService {
       messages,
       temperature,
       jsonMode: true,
+      maxTokens,
       model,
     });
 

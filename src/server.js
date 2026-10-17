@@ -14,6 +14,8 @@ import { AIProviderService } from './ai/provider.js';
 import { PDFImporterService } from './ai/pdf-importer.js';
 import { LinkedInImporterService } from './ai/linkedin-importer.js';
 import { ChatAssistantService } from './ai/chat-assistant.js';
+import { ResumeLanguageService, SUPPORTED_LANGUAGES } from './ai/language-service.js';
+import { ResumeTailorService } from './ai/tailor-service.js';
 import { DocxGeneratorService } from './export/docx-generator.js';
 import { TEMPLATES, renderTemplateHtml } from './templates/registry.js';
 
@@ -416,11 +418,179 @@ app.post('/api/ai/chat/:resumeId', requireAuth, rateLimitAI, async (req, res) =>
   }
 });
 
+// Transparent helper to ensure CV data and spoken languages are normalized and translated if a target language is requested
+async function resolveResumeDataForLanguage(userId, resume, requestedLang) {
+  const baseData = resume.data || {};
+  const targetLang = ResumeLanguageService.getLanguageConfig(requestedLang || resume.language || baseData.language || 'fr').code;
+  const currentDataLang = ResumeLanguageService.getLanguageConfig(baseData.language || resume.language || 'fr').code;
+
+  // Always normalize spoken languages array
+  baseData.languages = ResumeLanguageService.normalizeSpokenLanguages(baseData.languages, targetLang);
+
+  // If target language matches current data language, return directly
+  if (!requestedLang || targetLang === currentDataLang) {
+    return {
+      ...baseData,
+      language: targetLang,
+    };
+  }
+
+  // Check cached invisible translation in baseData._translations
+  const hash = ResumeLanguageService.computeContentHash(baseData);
+  const cached = baseData._translations?.[targetLang];
+  if (cached && cached.hash === hash && cached.data) {
+    return {
+      ...cached.data,
+      language: targetLang,
+      personal: {
+        ...(cached.data.personal || {}),
+        photo: baseData.personal?.photo || '',
+      },
+    };
+  }
+
+  // Otherwise translate invisibly via LiteLLM and cache
+  try {
+    const translatedData = await ResumeLanguageService.translateResumeData(baseData, targetLang);
+    const updatedTranslations = {
+      ...(baseData._translations || {}),
+      [targetLang]: {
+        hash,
+        updatedAt: new Date().toISOString(),
+        data: {
+          ...translatedData,
+          _translations: undefined,
+          personal: {
+            ...(translatedData.personal || {}),
+            photo: undefined,
+          },
+        },
+      },
+    };
+    await db.updateResume(userId, resume.id, {
+      data: {
+        ...baseData,
+        _translations: updatedTranslations,
+      },
+    }, false);
+    return translatedData;
+  } catch (err) {
+    console.warn(`[LanguageService] Fallback sans traduction IA vers ${targetLang}:`, err.message);
+    return {
+      ...baseData,
+      language: targetLang,
+    };
+  }
+}
+
+// Seamless CV Language Translation endpoint (invoked automatically when changing CV language or exporting)
+app.post('/api/ai/translate/:resumeId', requireAuth, rateLimitAI, async (req, res) => {
+  try {
+    const { targetLanguage, resumeData } = req.body;
+    const resume = await db.getResume(req.user.id, req.params.resumeId, false);
+    if (!resume) return res.status(404).json({ error: 'CV non trouvé.' });
+
+    const langCfg = ResumeLanguageService.getLanguageConfig(targetLanguage || 'fr');
+    const sourceData = resumeData || resume.data || {};
+    const translatedData = await ResumeLanguageService.translateResumeData(sourceData, langCfg.code);
+
+    const updated = await db.updateResume(
+      req.user.id,
+      resume.id,
+      {
+        language: langCfg.code,
+        data: translatedData,
+      },
+      true,
+      `Traduction automatique (${langCfg.name})`
+    );
+
+    await db.addAuditLog(req.user.id, 'ai_translate_resume', { resumeId: resume.id, targetLanguage: langCfg.code }, req.ip);
+
+    res.json({
+      success: true,
+      language: langCfg.code,
+      languageName: langCfg.name,
+      resume: updated,
+    });
+  } catch (err) {
+    console.error('[AI Translate Error]:', err.message);
+    res.status(500).json({ error: `Erreur traduction IA : ${err.message}` });
+  }
+});
+
+// Custom Prompt CV Summarizer & Orientation endpoint
+app.post('/api/ai/tailor/:resumeId', requireAuth, rateLimitAI, async (req, res) => {
+  try {
+    const { customPrompt, targetLength = 'auto', targetLanguage, mode = 'update', resumeData } = req.body;
+    if (!customPrompt || !customPrompt.trim()) {
+      return res.status(400).json({ error: 'Veuillez fournir un prompt ou besoin spécifique.' });
+    }
+
+    const resume = await db.getResume(req.user.id, req.params.resumeId, false);
+    if (!resume) return res.status(404).json({ error: 'CV non trouvé.' });
+
+    const sourceData = resumeData || resume.data || {};
+    const langCode = ResumeLanguageService.getLanguageConfig(targetLanguage || resume.language || sourceData.language || 'fr').code;
+
+    const result = await ResumeTailorService.summarizeAndOrient({
+      resumeData: sourceData,
+      customPrompt,
+      targetLength,
+      targetLanguage: langCode,
+    });
+
+    let savedResume;
+    if (mode === 'duplicate') {
+      savedResume = await db.createResume(req.user.id, {
+        title: `${resume.title} (Orienté IA)`,
+        template_id: resume.template_id || 'modern',
+        language: langCode,
+        is_master: false,
+        data: result.tailoredData,
+      });
+    } else {
+      savedResume = await db.updateResume(
+        req.user.id,
+        resume.id,
+        {
+          language: langCode,
+          data: result.tailoredData,
+        },
+        true,
+        `Résumé/Orienté IA : ${customPrompt.trim().slice(0, 45)}`
+      );
+    }
+
+    await db.addAuditLog(req.user.id, 'ai_tailor_resume', {
+      resumeId: savedResume.id,
+      targetLength,
+      targetLanguage: langCode,
+      mode,
+    }, req.ip);
+
+    res.json({
+      success: true,
+      mode,
+      executivePitch: result.executivePitch,
+      tailoringNotes: result.tailoringNotes,
+      resume: savedResume,
+    });
+  } catch (err) {
+    console.error('[AI Tailor Error]:', err.message);
+    res.status(500).json({ error: `Erreur lors du résumé/orientation par IA : ${err.message}` });
+  }
+});
+
 // ==========================================
 // EXPORTS & TEMPLATES
 // ==========================================
 app.get('/api/templates', (req, res) => {
   res.json(TEMPLATES);
+});
+
+app.get('/api/languages', (req, res) => {
+  res.json(Object.values(SUPPORTED_LANGUAGES));
 });
 
 app.get('/api/render/:resumeId', requireAuth, async (req, res) => {
@@ -431,8 +601,14 @@ app.get('/api/render/:resumeId', requireAuth, async (req, res) => {
     const templateId = req.query.template || resume.template_id || 'modern';
     const primaryColor = req.query.color || undefined;
     const fontFamily = req.query.font || undefined;
+    const requestedLang = req.query.lang || undefined;
 
-    const html = renderTemplateHtml(templateId, resume.data, { primaryColor, fontFamily });
+    const dataToRender = await resolveResumeDataForLanguage(req.user.id, resume, requestedLang);
+    const html = renderTemplateHtml(templateId, dataToRender, {
+      primaryColor,
+      fontFamily,
+      language: dataToRender.language || resume.language || 'fr',
+    });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (err) {
@@ -442,7 +618,10 @@ app.get('/api/render/:resumeId', requireAuth, async (req, res) => {
 
 app.post('/api/render/preview', requireAuth, (req, res) => {
   const { template_id, data, options } = req.body;
-  const html = renderTemplateHtml(template_id || 'modern', data || {}, options || {});
+  const safeData = data || {};
+  const langCode = options?.language || safeData.language || 'fr';
+  safeData.languages = ResumeLanguageService.normalizeSpokenLanguages(safeData.languages, langCode);
+  const html = renderTemplateHtml(template_id || 'modern', safeData, { ...(options || {}), language: langCode });
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(html);
 });
@@ -452,13 +631,20 @@ app.get('/api/export/:resumeId/docx', requireAuth, async (req, res) => {
     const resume = await db.getResume(req.user.id, req.params.resumeId, false);
     if (!resume) return res.status(404).json({ error: 'CV non trouvé.' });
 
-    const primaryColor = req.query.color || resume.data?.style?.primaryColor || undefined;
-    const buffer = await DocxGeneratorService.generate(resume.data, { primaryColor });
+    const requestedLang = req.query.lang || resume.language || resume.data?.language || 'fr';
+    const dataToExport = await resolveResumeDataForLanguage(req.user.id, resume, requestedLang);
+
+    const primaryColor = req.query.color || dataToExport?.style?.primaryColor || undefined;
+    const buffer = await DocxGeneratorService.generate(dataToExport, {
+      primaryColor,
+      language: dataToExport.language || requestedLang,
+    });
 
     const safeTitle = (resume.title || 'CV').replace(/[^a-zA-Z0-9_\u00C0-\u017F-]/g, '_');
-    const filename = `${safeTitle}.docx`;
+    const langSuffix = req.query.lang ? `_${req.query.lang.toUpperCase()}` : '';
+    const filename = `${safeTitle}${langSuffix}.docx`;
 
-    await db.addAuditLog(req.user.id, 'export_docx', { resumeId: resume.id }, req.ip);
+    await db.addAuditLog(req.user.id, 'export_docx', { resumeId: resume.id, lang: requestedLang }, req.ip);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
@@ -474,13 +660,20 @@ app.get('/api/export/:resumeId/pdf', requireAuth, async (req, res) => {
     const resume = await db.getResume(req.user.id, req.params.resumeId, false);
     if (!resume) return res.status(404).send('CV non trouvé.');
 
+    const requestedLang = req.query.lang || resume.language || resume.data?.language || 'fr';
+    const dataToExport = await resolveResumeDataForLanguage(req.user.id, resume, requestedLang);
+
     const templateId = req.query.template || resume.template_id || 'modern';
-    const primaryColor = req.query.color || resume.data?.style?.primaryColor || undefined;
-    const fontFamily = req.query.font || resume.data?.style?.fontFamily || undefined;
+    const primaryColor = req.query.color || dataToExport?.style?.primaryColor || undefined;
+    const fontFamily = req.query.font || dataToExport?.style?.fontFamily || undefined;
 
-    await db.addAuditLog(req.user.id, 'export_pdf', { resumeId: resume.id }, req.ip);
+    await db.addAuditLog(req.user.id, 'export_pdf', { resumeId: resume.id, lang: requestedLang }, req.ip);
 
-    const html = renderTemplateHtml(templateId, resume.data, { primaryColor, fontFamily });
+    const html = renderTemplateHtml(templateId, dataToExport, {
+      primaryColor,
+      fontFamily,
+      language: dataToExport.language || requestedLang,
+    });
     const printHtml = html.replace('</body>', '<script>window.addEventListener("load", () => { setTimeout(() => window.print(), 250); });</script></body>');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

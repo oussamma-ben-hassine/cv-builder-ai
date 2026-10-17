@@ -229,6 +229,9 @@ function renderResumesGrid() {
             <button onclick="openEditor('${cv.id}')" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold transition">
               Modifier
             </button>
+            <button onclick="openTailorModalFromCard('${cv.id}')" class="p-1.5 rounded-lg hover:bg-amber-100 text-amber-600 transition" title="Résumer / Orienter avec un Prompt Spécial IA">
+              <i data-lucide="wand-2" class="w-4 h-4"></i>
+            </button>
             <button onclick="previewResumeInModal('${cv.id}')" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition" title="Prévisualiser">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
@@ -241,10 +244,10 @@ function renderResumesGrid() {
           </div>
 
           <div class="flex items-center gap-1">
-            <a href="/api/export/${cv.id}/docx" class="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition" title="Télécharger Word DOCX">
+            <a href="/api/export/${cv.id}/docx?lang=${encodeURIComponent(cv.language || 'fr')}" class="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition" title="Télécharger Word DOCX">
               <i data-lucide="file-type-2" class="w-4 h-4"></i>
             </a>
-            <a href="/api/export/${cv.id}/pdf" target="_blank" class="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition" title="Télécharger PDF">
+            <a href="/api/export/${cv.id}/pdf?lang=${encodeURIComponent(cv.language || 'fr')}" target="_blank" class="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition" title="Télécharger PDF">
               <i data-lucide="download" class="w-4 h-4"></i>
             </a>
             <button onclick="deleteResume('${cv.id}')" class="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Supprimer">
@@ -480,19 +483,36 @@ function redoEdit() {
   scheduleLivePreview();
 }
 
+function normalizeClientLanguages(languages) {
+  if (!Array.isArray(languages)) return [];
+  return languages
+    .map((item, idx) => {
+      if (!item) return null;
+      if (typeof item === 'string') {
+        return { id: `lang_${idx + 1}`, name: item.trim(), level: 'Courant' };
+      }
+      const name = String(item.name || item.language || item.langue || item.title || '').trim();
+      const level = String(item.level || item.niveau || item.proficiency || 'Courant').trim();
+      return { id: item.id || `lang_${idx + 1}`, name, level };
+    })
+    .filter(Boolean);
+}
+
 function populateForm(data) {
   const p = data.personal || {};
   document.getElementById('f-firstName').value = p.firstName || '';
   document.getElementById('f-lastName').value = p.lastName || '';
-  document.getElementById('f-title').value = p.title || '';
+  document.getElementById('f-title').value = p.title || p.jobTitle || '';
   document.getElementById('f-email').value = p.email || '';
   document.getElementById('f-phone').value = p.phone || '';
   document.getElementById('f-city').value = p.city || '';
   document.getElementById('f-country').value = p.country || '';
   document.getElementById('f-linkedin').value = p.linkedin || '';
   document.getElementById('f-github').value = p.github || '';
-  document.getElementById('f-website').value = p.website || '';
+  document.getElementById('f-website').value = p.website || p.portfolio || '';
   document.getElementById('f-summary').value = p.summary || '';
+
+  data.languages = normalizeClientLanguages(data.languages || []);
 
   renderExperienceItems(data.experiences || []);
   renderEducationItems(data.education || []);
@@ -577,10 +597,71 @@ function onStyleChange() {
   onFormInput();
 }
 
-function onCvLangChange() {
+async function onCvLangChange() {
   if (!state.currentResume) return;
-  state.currentResume.language = document.getElementById('editor-cv-lang').value;
-  onFormInput();
+  const newLang = document.getElementById('editor-cv-lang').value || 'fr';
+  state.currentResume.language = newLang;
+  state.currentResume.data = collectFormData();
+  state.currentResume.data.language = newLang;
+
+  // Immediate preview update for localized section headers & RTL direction
+  scheduleLivePreview();
+
+  // Seamless & automatic AI translation of the CV content into the selected language
+  const d = state.currentResume.data;
+  const hasSubstantialContent =
+    (d.personal?.summary && d.personal.summary.length > 5) ||
+    (d.experiences && d.experiences.length > 0) ||
+    (d.education && d.education.length > 0) ||
+    (d.skills && d.skills.length > 0);
+
+  if (!hasSubstantialContent) {
+    scheduleAutoSave();
+    return;
+  }
+
+  const statusBadge = document.getElementById('lang-translate-status');
+  const saveIndicator = document.getElementById('save-status-indicator');
+  if (statusBadge) {
+    statusBadge.classList.remove('hidden');
+    statusBadge.innerText = `Adaptation IA (${newLang.toUpperCase()})...`;
+  }
+  if (saveIndicator) {
+    saveIndicator.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin text-purple-600"></i> Traduction IA en cours...';
+    initLucide();
+  }
+
+  try {
+    const res = await fetch(`/api/ai/translate/${state.currentResume.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetLanguage: newLang,
+        resumeData: state.currentResume.data,
+      }),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (result.resume && result.resume.data) {
+        state.currentResume = result.resume;
+        pushUndoSnapshot();
+        populateForm(state.currentResume.data);
+        updateLivePreview();
+      }
+      if (saveIndicator) {
+        saveIndicator.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Traduit en ${escapeHtml(result.languageName || newLang.toUpperCase())}`;
+        initLucide();
+      }
+    } else {
+      scheduleAutoSave();
+    }
+  } catch (err) {
+    console.warn('Traduction automatique ignorée:', err);
+    scheduleAutoSave();
+  } finally {
+    if (statusBadge) statusBadge.classList.add('hidden');
+  }
 }
 
 function onMasterToggle() {
@@ -634,6 +715,31 @@ function scheduleLivePreview() {
   state.previewTimer = setTimeout(updateLivePreview, 250);
 }
 
+function resizePreviewIframeToContent(iframe) {
+  if (!iframe) return;
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc || !doc.body) return;
+    const pageEl = doc.querySelector('.cv-page') || doc.body;
+    const rawHeight = Math.max(
+      pageEl.scrollHeight || 0,
+      doc.body.scrollHeight || 0,
+      doc.documentElement.scrollHeight || 0,
+      1122
+    );
+    iframe.style.height = `${rawHeight + 4}px`;
+
+    // 1 A4 page at 96 DPI is ~1122.5px (297mm)
+    const pageCount = Math.max(1, Math.ceil((rawHeight - 24) / 1122));
+    const badge = document.getElementById('preview-page-count');
+    if (badge) {
+      badge.innerText = pageCount === 1 ? '1 page A4' : `${pageCount} pages A4`;
+    }
+  } catch (err) {
+    // Ignore cross-origin or transient errors
+  }
+}
+
 async function updateLivePreview() {
   if (!state.currentResume) return;
   const iframe = document.getElementById('cv-preview-iframe');
@@ -643,6 +749,7 @@ async function updateLivePreview() {
   const primaryColor = document.getElementById('editor-color-picker').value;
   const fontFamily = document.getElementById('editor-font-select').value;
   const fontSize = document.getElementById('editor-fontsize-select').value;
+  const language = document.getElementById('editor-cv-lang').value || state.currentResume.language || 'fr';
 
   try {
     const res = await fetch('/api/render/preview', {
@@ -650,11 +757,15 @@ async function updateLivePreview() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         template_id,
-        data: state.currentResume.data,
-        options: { primaryColor, fontFamily, fontSize },
+        data: { ...(state.currentResume.data || {}), language },
+        options: { primaryColor, fontFamily, fontSize, language },
       }),
     });
     const html = await res.text();
+    iframe.onload = () => {
+      resizePreviewIframeToContent(iframe);
+      setTimeout(() => resizePreviewIframeToContent(iframe), 180);
+    };
     iframe.srcdoc = html;
   } catch (err) {
     console.error('Erreur rafraîchissement aperçu:', err);
@@ -1236,14 +1347,20 @@ function appendChatMessage(role, text, proposedChanges, suggestions) {
 }
 
 function describeProposedChange(change) {
-  if (change.action === 'add_experience') {
-    return `Ajout du poste <strong>${escapeHtml(change.data?.position || '')}</strong> chez <strong>${escapeHtml(change.data?.company || '')}</strong>.`;
+  if (change.action === 'add_experience' || change.action === 'update_experience') {
+    return `Ajout / mise à jour du poste <strong>${escapeHtml(change.data?.position || '')}</strong> chez <strong>${escapeHtml(change.data?.company || '')}</strong>.`;
   } else if (change.action === 'update_personal') {
     return `Mise à jour des informations / présentation personnelle.`;
-  } else if (change.action === 'add_skills') {
+  } else if (change.action === 'add_skills' || change.action === 'add_skill') {
     return `Ajout de compétences professionnelles structurées.`;
   } else if (change.action === 'add_education') {
     return `Ajout d'une formation académique.`;
+  } else if (change.action === 'add_language' || change.action === 'add_languages') {
+    return `Ajout / mise à jour des langues parlées.`;
+  } else if (change.action === 'add_certification') {
+    return `Ajout d'une certification professionnelle.`;
+  } else if (change.action === 'add_project') {
+    return `Ajout d'un projet notable.`;
   }
   return `Mise à jour de la section <strong>${escapeHtml(change.section || '')}</strong>.`;
 }
@@ -1261,7 +1378,7 @@ function applyProposedChanges(change) {
   if (!state.currentResume || !change) return;
 
   const d = state.currentResume.data;
-  if (change.action === 'add_experience' && change.data) {
+  if ((change.action === 'add_experience' || change.action === 'update_experience') && change.data) {
     d.experiences = d.experiences || [];
     d.experiences.unshift({
       id: `exp_${Date.now()}`,
@@ -1271,13 +1388,15 @@ function applyProposedChanges(change) {
       startDate: change.data.startDate || '',
       endDate: change.data.endDate || '',
       current: !!change.data.current,
-      summary: change.data.summary || '',
-      highlights: Array.isArray(change.data.highlights) ? change.data.highlights : [],
+      summary: change.data.summary || change.data.description || '',
+      highlights: Array.isArray(change.data.highlights)
+        ? change.data.highlights
+        : (Array.isArray(change.data.missions) ? change.data.missions : []),
       technologies: Array.isArray(change.data.technologies) ? change.data.technologies : [],
     });
   } else if (change.action === 'update_personal' && change.data) {
     d.personal = { ...(d.personal || {}), ...change.data };
-  } else if (change.action === 'add_skills' && change.data) {
+  } else if ((change.action === 'add_skills' || change.action === 'add_skill') && change.data) {
     d.skills = d.skills || [];
     const list = Array.isArray(change.data) ? change.data : [change.data];
     for (const sk of list) {
@@ -1299,6 +1418,45 @@ function applyProposedChanges(change) {
       endDate: change.data.endDate || '',
       summary: change.data.summary || '',
     });
+  } else if ((change.action === 'add_language' || change.action === 'add_languages' || change.section === 'languages') && change.data) {
+    d.languages = d.languages || [];
+    const list = Array.isArray(change.data) ? change.data : [change.data];
+    for (const lg of list) {
+      const name = typeof lg === 'string' ? lg : (lg.name || lg.language || lg.langue || '');
+      const level = typeof lg === 'string' ? 'Courant' : (lg.level || lg.niveau || 'Courant');
+      if (name) {
+        d.languages.push({
+          id: `lang_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          name,
+          level,
+        });
+      }
+    }
+  } else if ((change.action === 'add_certification' || change.section === 'certifications') && change.data) {
+    d.certifications = d.certifications || [];
+    const list = Array.isArray(change.data) ? change.data : [change.data];
+    for (const cert of list) {
+      d.certifications.push({
+        id: `cert_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        name: cert.name || '',
+        issuer: cert.issuer || '',
+        date: cert.date || '',
+        url: cert.url || '',
+      });
+    }
+  } else if ((change.action === 'add_project' || change.section === 'projects') && change.data) {
+    d.projects = d.projects || [];
+    const list = Array.isArray(change.data) ? change.data : [change.data];
+    for (const pr of list) {
+      d.projects.push({
+        id: `proj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        name: pr.name || '',
+        role: pr.role || '',
+        description: pr.description || '',
+        url: pr.url || '',
+        technologies: Array.isArray(pr.technologies) ? pr.technologies : [],
+      });
+    }
   }
 
   populateForm(d);
@@ -1355,12 +1513,13 @@ async function askAIToRewriteSummary() {
 }
 
 // ==========================================
-// EXPORTS
+// EXPORTS (INVISIBLE MULTILINGUAL SUPPORT)
 // ==========================================
 function exportDocx() {
   if (!state.currentResume) return;
   const primaryColor = document.getElementById('editor-color-picker').value;
-  window.location.href = `/api/export/${state.currentResume.id}/docx?color=${encodeURIComponent(primaryColor)}`;
+  const lang = document.getElementById('editor-cv-lang').value || state.currentResume.language || 'fr';
+  window.location.href = `/api/export/${state.currentResume.id}/docx?color=${encodeURIComponent(primaryColor)}&lang=${encodeURIComponent(lang)}`;
 }
 
 function exportPdf() {
@@ -1368,7 +1527,112 @@ function exportPdf() {
   const templateId = document.getElementById('editor-template-select').value;
   const primaryColor = document.getElementById('editor-color-picker').value;
   const fontFamily = document.getElementById('editor-font-select').value;
-  window.open(`/api/export/${state.currentResume.id}/pdf?template=${templateId}&color=${encodeURIComponent(primaryColor)}&font=${encodeURIComponent(fontFamily)}`, '_blank');
+  const lang = document.getElementById('editor-cv-lang').value || state.currentResume.language || 'fr';
+  window.open(`/api/export/${state.currentResume.id}/pdf?template=${templateId}&color=${encodeURIComponent(primaryColor)}&font=${encodeURIComponent(fontFamily)}&lang=${encodeURIComponent(lang)}`, '_blank');
+}
+
+// ==========================================
+// MODAL: TAILOR / SUMMARIZE CV WITH SPECIAL PROMPT
+// ==========================================
+function openTailorModal() {
+  if (!state.currentResume) return;
+  const modal = document.getElementById('modal-tailor');
+  if (!modal) return;
+
+  const currentLang = document.getElementById('editor-cv-lang')?.value || state.currentResume.language || 'fr';
+  const langSelect = document.getElementById('tailor-target-lang');
+  if (langSelect) langSelect.value = currentLang;
+
+  document.getElementById('tailor-loading')?.classList.add('hidden');
+  document.getElementById('tailor-result-box')?.classList.add('hidden');
+  modal.classList.remove('hidden');
+  initLucide();
+}
+
+async function openTailorModalFromCard(resumeId) {
+  await openEditor(resumeId);
+  openTailorModal();
+}
+
+function closeTailorModal() {
+  document.getElementById('modal-tailor')?.classList.add('hidden');
+}
+
+function setTailorPreset(promptText, targetLength = 'auto') {
+  const promptEl = document.getElementById('tailor-custom-prompt');
+  const lenEl = document.getElementById('tailor-target-length');
+  if (promptEl) promptEl.value = promptText;
+  if (lenEl && targetLength) lenEl.value = targetLength;
+}
+
+async function submitTailorResume() {
+  if (!state.currentResume) return;
+  const customPrompt = document.getElementById('tailor-custom-prompt').value.trim();
+  const targetLength = document.getElementById('tailor-target-length').value || 'auto';
+  const targetLanguage = document.getElementById('tailor-target-lang').value || 'fr';
+  const mode = document.getElementById('tailor-mode').value || 'update';
+
+  if (!customPrompt) {
+    alert('Veuillez saisir un prompt spécial ou cliquer sur une suggestion rapide.');
+    return;
+  }
+
+  const loadingEl = document.getElementById('tailor-loading');
+  const resultBox = document.getElementById('tailor-result-box');
+  const submitBtn = document.getElementById('tailor-submit-btn');
+
+  loadingEl.classList.remove('hidden');
+  resultBox.classList.add('hidden');
+  submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/ai/tailor/${state.currentResume.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customPrompt,
+        targetLength,
+        targetLanguage,
+        mode,
+        resumeData: collectFormData(),
+      }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Erreur lors du traitement IA');
+    }
+
+    const result = await res.json();
+    state.currentResume = result.resume;
+    document.getElementById('editor-title-input').value = state.currentResume.title || 'CV';
+    document.getElementById('editor-cv-lang').value = state.currentResume.language || targetLanguage;
+    if (state.currentResume.data?.style?.fontSize) {
+      document.getElementById('editor-fontsize-select').value = state.currentResume.data.style.fontSize;
+    }
+
+    pushUndoSnapshot();
+    populateForm(state.currentResume.data || {});
+    updateLivePreview();
+
+    document.getElementById('tailor-pitch-text').innerText = result.executivePitch || '';
+    const notesList = document.getElementById('tailor-notes-list');
+    notesList.innerHTML = (result.tailoringNotes || []).map(n => `<li>${escapeHtml(n)}</li>`).join('');
+    resultBox.classList.remove('hidden');
+  } catch (err) {
+    alert(`Erreur : ${err.message}`);
+  } finally {
+    loadingEl.classList.add('hidden');
+    submitBtn.disabled = false;
+  }
+}
+
+function copyTailorPitch() {
+  const text = document.getElementById('tailor-pitch-text')?.innerText || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Pitch exécutif copié dans le presse-papiers !');
+  }).catch(() => {});
 }
 
 // ==========================================
@@ -1449,13 +1713,15 @@ async function handlePdfFileSelect(e) {
     }
 
     const p = extractedData.personal || {};
+    const langsList = normalizeClientLanguages(extractedData.languages || []).map(l => `${l.name} (${l.level})`).join(', ');
     document.getElementById('pdf-review-summary').innerHTML = `
       <div><strong>Candidat :</strong> ${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</div>
       <div><strong>Titre :</strong> ${escapeHtml(p.title || 'Non détecté')}</div>
-      <div><strong>Email :</strong> ${escapeHtml(p.email || 'Non détecté')}</div>
+      <div><strong>Langue du CV détectée :</strong> <span class="uppercase font-bold text-brand-700">${escapeHtml(extractedData.language || 'fr')}</span></div>
       <div><strong>Expériences extraites :</strong> ${(extractedData.experiences || []).length}</div>
       <div><strong>Formations extraites :</strong> ${(extractedData.education || []).length}</div>
       <div><strong>Compétences extraites :</strong> ${(extractedData.skills || []).length}</div>
+      <div><strong>Langues parlées :</strong> ${escapeHtml(langsList || 'Non détectées')}</div>
     `;
   } catch (err) {
     alert(`Erreur d'importation : ${err.message}`);
