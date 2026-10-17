@@ -90,12 +90,23 @@ app.get(['/health', '/api/health'], (req, res) => {
 // ==========================================
 // AUTH & OIDC SSO
 // ==========================================
+function resolveRedirectUri(req) {
+  const host = req.get('host');
+  if (host && (host.endsWith('.oussamma.tn') || host.startsWith('localhost'))) {
+    const proto = host.startsWith('localhost') ? 'http' : 'https';
+    return `${proto}://${host}/auth/callback`;
+  }
+  return config.sso.redirectUri;
+}
+
 app.get('/auth/login', (req, res) => {
   const { code_verifier, code_challenge } = OIDCAuthService.generatePKCE();
   const state = OIDCAuthService.generateSignedState();
+  const redirectUri = resolveRedirectUri(req);
 
   pkceStates.set(state, {
     verifier: code_verifier,
+    redirectUri,
     expiresAt: Date.now() + 10 * 60 * 1000,
   });
 
@@ -103,7 +114,7 @@ app.get('/auth/login', (req, res) => {
     if (Date.now() > v.expiresAt) pkceStates.delete(k);
   }
 
-  const authUrl = OIDCAuthService.getAuthorizationUrl(config.sso.redirectUri, state, code_challenge);
+  const authUrl = OIDCAuthService.getAuthorizationUrl(redirectUri, state, code_challenge);
   res.redirect(authUrl);
 });
 
@@ -125,10 +136,11 @@ app.get(['/auth/callback', '/api/auth/callback'], async (req, res) => {
 
   const stateData = pkceStates.get(state);
   const code_verifier = stateData?.verifier || '';
+  const redirectUri = stateData?.redirectUri || resolveRedirectUri(req);
   pkceStates.delete(state);
 
   try {
-    const tokenRes = await OIDCAuthService.exchangeCodeForToken(code, code_verifier, config.sso.redirectUri);
+    const tokenRes = await OIDCAuthService.exchangeCodeForToken(code, code_verifier, redirectUri);
     const userInfo = await OIDCAuthService.fetchUserInfo(tokenRes.access_token);
 
     const sub = userInfo.sub || userInfo.id;
@@ -170,7 +182,7 @@ app.get('/auth/logout', (req, res) => {
     db.addAuditLog(req.user.id, 'user_logout', {}, req.ip).catch(() => {});
   }
   SessionManager.clearSessionCookie(res);
-  res.redirect(config.sso.postLogoutRedirectUri || '/');
+  res.redirect('/');
 });
 
 // ==========================================
