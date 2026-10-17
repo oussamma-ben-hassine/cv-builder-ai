@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV Builder IA — Créateur & Gestionnaire Intelligent de CV</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/css/styles.css">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased font-sans">
+
+  <!-- TOP NAVBAR -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="navigate(state.currentUser ? 'dashboard' : 'landing')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-700 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+          <i data-lucide="file-badge" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-brand-700 to-indigo-600 bg-clip-text text-transparent">CV Builder IA</span>
+          <span class="hidden sm:inline-block ml-2 text-xs px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 font-semibold border border-brand-200">LiteLLM + SSO</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="lang-toggle-btn" onclick="toggleLanguage()" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 flex items-center gap-1 transition">
+          <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+          <span id="lang-indicator">FR</span>
+        </button>
+
+        <div id="auth-nav-container" class="flex items-center gap-2"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 flex flex-col overflow-hidden relative">
+
+    <!-- 1. LANDING VIEW -->
+    <div id="view-landing" class="view-panel flex-1 overflow-y-auto hidden">
+      <div class="max-w-5xl mx-auto px-4 py-12 sm:py-16 text-center">
+        <div id="auth-error-banner" class="hidden max-w-lg mx-auto mb-6 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold"></div>
+
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium mb-6">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          Intégré à votre Écosystème Personnel SSO & LiteLLM
+        </div>
+        <h1 class="text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight mb-6">
+          Créez des CV percutants grâce à <span class="bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">l'Intelligence Artificielle</span>
+        </h1>
+        <p class="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+          Trois modes de conception pour bâtir votre profil professionnel d'excellence : formulaire guidé, import intelligent PDF/LinkedIn ou échange direct avec notre assistant IA.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <a href="/auth/login" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-base shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition transform active:scale-95">
+            <i data-lucide="log-in" class="w-5 h-5"></i>
+            Se connecter avec le SSO
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-left mt-8">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-brand-600 flex items-center justify-center mb-4">
+              <i data-lucide="edit-3" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">1. Formulaire Structuré</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Éditeur complet avec réorganisation, gestion d'expériences, compétences, langues, formations et sections personnalisées.
+            </p>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <i data-lucide="file-up" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">2. Import PDF & LinkedIn</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Déposez votre CV existant : notre passerelle LiteLLM extrait instantanément vos données factuelles avec validation avant sauvegarde.
+            </p>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
+              <i data-lucide="bot" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">3. Assistant IA Conversationnel</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Discutez avec l'IA pour enrichir vos réalisations, optimiser vos mots-clés ATS et structurer votre parcours pas à pas.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-16 bg-slate-900 text-white rounded-3xl p-8 sm:p-12 text-left relative overflow-hidden">
+          <div class="relative z-10 max-w-2xl">
+            <span class="text-xs font-bold uppercase tracking-wider text-brand-400">Exports Doubles Professionnels</span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold mt-2 mb-4">PDF Pixel-Perfect & Word DOCX Vraiment Modifiable</h2>
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
+              Téléchargez votre CV au format PDF A4 prêt pour les recruteurs avec liens cliquables, ou en document Microsoft Word DOCX natif et structuré.
+            </p>
+            <div class="flex flex-wrap gap-4 text-xs font-semibold text-slate-300">
+              <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Format A4 Universel</span>
+              <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Optimisé Robots ATS</span>
+              <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> 9 Modèles Inclus</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. DASHBOARD VIEW -->
+    <div id="view-dashboard" class="view-panel flex-1 overflow-y-auto hidden">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900" data-i18n="myResumes">Mes CV</h1>
+            <p class="text-slate-500 text-sm mt-1">Gérez, éditez, versionnez et exportez vos curriculums professionnels.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <button onclick="navigate('templates')" class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium text-xs sm:text-sm flex items-center gap-2 transition">
+              <i data-lucide="layout-template" class="w-4 h-4 text-brand-600"></i>
+              Galerie de Modèles
+            </button>
+            <button onclick="openImportModal()" class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium text-xs sm:text-sm flex items-center gap-2 transition">
+              <i data-lucide="upload" class="w-4 h-4 text-indigo-600"></i>
+              Importer PDF / LinkedIn
+            </button>
+            <button onclick="openNewResumeModal()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              Nouveau CV
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter tabs: Active vs Archived -->
+        <div class="flex items-center gap-2 mb-6 border-b border-slate-200 pb-2">
+          <button id="filter-btn-active" onclick="setResumeFilter('active')" class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 font-bold text-xs">CV Actifs</button>
+          <button id="filter-btn-archived" onclick="setResumeFilter('archived')" class="px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 font-medium text-xs">Archivés</button>
+        </div>
+
+        <div id="resumes-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+        <div id="resumes-empty" class="hidden text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300">
+          <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="file-plus" class="w-8 h-8"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800">Aucun CV dans cet onglet</h3>
+          <p class="text-slate-500 text-sm max-w-sm mx-auto mt-1 mb-6">Créez votre premier CV manuellement, via un import PDF ou en discutant avec notre assistant IA.</p>
+          <div class="flex items-center justify-center gap-3">
+            <button onclick="openNewResumeModal()" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition">
+              Créer un CV
+            </button>
+            <button onclick="openImportModal()" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">
+              Importer un PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TEMPLATES GALLERY VIEW -->
+    <div id="view-templates" class="view-panel flex-1 overflow-y-auto hidden">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900">Galerie de Templates A4</h1>
+            <p class="text-slate-500 text-sm mt-1">9 modèles professionnels personnalisables (couleurs, polices, tailles, colonnes, avec ou sans photo).</p>
+          </div>
+          <button onclick="navigate('dashboard')" class="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold">
+            Retour aux CV
+          </button>
+        </div>
+        <div id="templates-gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+    </div>
+
+    <!-- 4. ACCOUNT SETTINGS VIEW -->
+    <div id="view-settings" class="view-panel flex-1 overflow-y-auto hidden">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900">Paramètres du Compte & Confidentialité</h1>
+            <p class="text-slate-500 text-sm mt-1">Compte authentifié via votre serveur SSO centralisé.</p>
+          </div>
+          <button onclick="navigate('dashboard')" class="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold">
+            Retour
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+          <h2 class="text-base font-bold text-slate-900">Identité OIDC</h2>
+          <div id="settings-user-details" class="text-sm text-slate-600 space-y-1"></div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+          <h2 class="text-base font-bold text-slate-900">Portabilité & RGPD (Vos Données Personnelles)</h2>
+          <p class="text-xs text-slate-500">Vous êtes propriétaire à 100% de vos données. Vous pouvez exporter l'intégralité de vos CV et historiques JSON ou supprimer votre compte local.</p>
+          <div class="flex flex-wrap gap-3 pt-2">
+            <a href="/api/account/export" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="download" class="w-4 h-4"></i> Exporter toutes mes données (JSON)
+            </a>
+            <button onclick="deleteMyAccount()" class="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer mon compte et mes CV
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. EDITOR VIEW -->
+    <div id="view-editor" class="view-panel flex-1 flex flex-col overflow-hidden hidden">
+      <!-- Editor Toolbar -->
+      <div class="bg-white border-b border-slate-200 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20">
+        <!-- Left: Back, Title, Undo/Redo -->
+        <div class="flex items-center gap-2 min-w-0">
+          <button onclick="navigate('dashboard')" class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition" title="Retour au tableau de bord">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+          </button>
+          <div class="min-w-0">
+            <input type="text" id="editor-title-input" oninput="onFormInput()" class="font-bold text-slate-900 bg-transparent hover:bg-slate-50 focus:bg-white focus:ring-1 focus:ring-brand-500 rounded px-2 py-0.5 text-sm sm:text-base truncate border border-transparent hover:border-slate-300 transition w-40 sm:w-56" value="Nouveau CV">
+            <div class="flex items-center gap-2 text-[11px] text-slate-400 pl-2">
+              <span id="save-status-indicator" class="flex items-center gap-1 text-emerald-600"><i data-lucide="check" class="w-3 h-3"></i> Enregistré</span>
+            </div>
+          </div>
+          <div class="hidden md:flex items-center gap-1 border-l border-slate-200 pl-2">
+            <button onclick="undoEdit()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Annuler (Undo)">
+              <i data-lucide="undo-2" class="w-4 h-4"></i>
+            </button>
+            <button onclick="redoEdit()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Rétablir (Redo)">
+              <i data-lucide="redo-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Center: Mobile Tab Switcher -->
+        <div class="lg:hidden flex rounded-lg bg-slate-100 p-1 text-xs font-semibold">
+          <button id="tab-btn-form" onclick="switchMobileTab('form')" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs">Édition</button>
+          <button id="tab-btn-preview" onclick="switchMobileTab('preview')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900">Aperçu</button>
+          <button id="tab-btn-ai" onclick="switchMobileTab('ai')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1">
+            <i data-lucide="bot" class="w-3 h-3 text-purple-600"></i> IA
+          </button>
+        </div>
+
+        <!-- Right: Customization, Versions, AI & Exports -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <!-- Template select -->
+          <select id="editor-template-select" onchange="onTemplateChange()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 font-medium text-slate-700" title="Modèle de CV"></select>
+
+          <!-- Font select -->
+          <select id="editor-font-select" onchange="onStyleChange()" class="hidden xl:block text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 font-medium text-slate-700" title="Police">
+            <option value="Inter, system-ui, sans-serif">Inter (Sans)</option>
+            <option value="Roboto, Arial, sans-serif">Roboto</option>
+            <option value="Montserrat, sans-serif">Montserrat</option>
+            <option value="Georgia, serif">Georgia (Serif)</option>
+            <option value="Calibri, Arial, sans-serif">Calibri</option>
+          </select>
+
+          <!-- Color picker -->
+          <input type="color" id="editor-color-picker" onchange="onStyleChange()" value="#2563eb" class="w-7 h-7 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white" title="Couleur principale">
+
+          <!-- Versions button -->
+          <button onclick="openVersionsModal()" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1" title="Historique des versions">
+            <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
+            <span class="hidden xl:inline">Versions</span>
+          </button>
+
+          <!-- AI Assistant Drawer -->
+          <button onclick="toggleAIAssistantDrawer()" class="px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold flex items-center gap-1 transition">
+            <i data-lucide="bot" class="w-4 h-4 text-purple-600"></i>
+            <span class="hidden md:inline">Assistant IA</span>
+          </button>
+
+          <!-- Export Word DOCX -->
+          <button onclick="exportDocx()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1 transition" title="Télécharger Word DOCX modifiable">
+            <i data-lucide="file-text" class="w-4 h-4 text-blue-600"></i>
+            <span class="hidden sm:inline">DOCX</span>
+          </button>
+
+          <!-- Export PDF -->
+          <button onclick="exportPdf()" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition" title="Télécharger PDF A4">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Editor Split Body -->
+      <div class="flex-1 flex overflow-hidden relative">
+        <!-- LEFT PANE: FORM -->
+        <div id="editor-left-pane" class="w-full lg:w-1/2 h-full overflow-y-auto p-4 sm:p-6 bg-slate-50 border-r border-slate-200">
+          <div class="max-w-2xl mx-auto space-y-4">
+
+            <!-- Style & Layout Bar -->
+            <div class="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div class="flex items-center gap-2">
+                <label class="font-semibold text-slate-600">Langue du CV:</label>
+                <select id="editor-cv-lang" onchange="onCvLangChange()" class="border border-slate-200 rounded-lg px-2 py-1">
+                  <option value="fr">Français</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="font-semibold text-slate-600">Taille texte:</label>
+                <select id="editor-fontsize-select" onchange="onStyleChange()" class="border border-slate-200 rounded-lg px-2 py-1">
+                  <option value="12.5px">Compact (12.5px)</option>
+                  <option value="13.5px" selected>Standard (13.5px)</option>
+                  <option value="14.5px">Grand (14.5px)</option>
+                </select>
+              </div>
+              <label class="inline-flex items-center gap-1.5 font-semibold text-slate-700 cursor-pointer">
+                <input type="checkbox" id="editor-is-master" onchange="onMasterToggle()" class="rounded text-brand-600">
+                Profil de référence
+              </label>
+            </div>
+
+            <!-- Section 1: Personal Info -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('personal')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="user" class="w-5 h-5 text-brand-600"></i>
+                  Informations Personnelles
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-personal" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-personal" class="px-5 pb-5 pt-1 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Prénom</label>
+                    <input type="text" id="f-firstName" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nom</label>
+                    <input type="text" id="f-lastName" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Titre Professionnel</label>
+                    <input type="text" id="f-title" placeholder="Ex: Architecte Logiciel & DevOps" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Photo (Optionnelle)</label>
+                    <input type="file" id="f-photo-file" accept="image/*" onchange="handlePhotoUpload(event)" class="text-xs w-full">
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+                    <input type="email" id="f-email" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Téléphone</label>
+                    <input type="tel" id="f-phone" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Ville</label>
+                    <input type="text" id="f-city" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Pays</label>
+                    <input type="text" id="f-country" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">LinkedIn</label>
+                    <input type="text" id="f-linkedin" placeholder="linkedin.com/in/..." oninput="onFormInput()" class="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">GitHub</label>
+                    <input type="text" id="f-github" placeholder="github.com/..." oninput="onFormInput()" class="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Portfolio / Site</label>
+                    <input type="text" id="f-website" placeholder="https://..." oninput="onFormInput()" class="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-lg">
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-semibold text-slate-600">Présentation Professionnelle</label>
+                    <button type="button" onclick="askAIToRewriteSummary()" class="text-xs text-purple-600 hover:text-purple-700 font-semibold flex items-center gap-1">
+                      <i data-lucide="sparkles" class="w-3 h-3"></i> Améliorer avec l'IA
+                    </button>
+                  </div>
+                  <textarea id="f-summary" rows="3" oninput="onFormInput()" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg" placeholder="Présentation synthétique de votre expertise, réalisations et objectifs..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Experiences -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('experiences')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="briefcase" class="w-5 h-5 text-brand-600"></i>
+                  Expériences Professionnelles (<span id="count-experiences">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-experiences" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-experiences" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="experiences-list" class="space-y-4"></div>
+                <button type="button" onclick="addExperienceItem()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter une expérience
+                </button>
+              </div>
+            </div>
+
+            <!-- Section 3: Education -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('education')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="graduation-cap" class="w-5 h-5 text-brand-600"></i>
+                  Formations & Diplômes (<span id="count-education">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-education" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-education" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="education-list" class="space-y-4"></div>
+                <button type="button" onclick="addEducationItem()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter une formation
+                </button>
+              </div>
+            </div>
+
+            <!-- Section 4: Skills -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('skills')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="award" class="w-5 h-5 text-brand-600"></i>
+                  Compétences (<span id="count-skills">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-skills" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-skills" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="skills-list" class="space-y-3"></div>
+                <button type="button" onclick="addSkillItem()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter une compétence
+                </button>
+              </div>
+            </div>
+
+            <!-- Section 5: Languages -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('languages')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="languages" class="w-5 h-5 text-brand-600"></i>
+                  Langues (<span id="count-languages">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-languages" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-languages" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="languages-list" class="space-y-3"></div>
+                <button type="button" onclick="addLanguageItem()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter une langue
+                </button>
+              </div>
+            </div>
+
+            <!-- Section 6: Projects -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('projects')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="folder-git-2" class="w-5 h-5 text-brand-600"></i>
+                  Projets (<span id="count-projects">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-projects" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-projects" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="projects-list" class="space-y-4"></div>
+                <button type="button" onclick="addProjectItem()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter un projet
+                </button>
+              </div>
+            </div>
+
+            <!-- Section 7: Certifications -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('certifications')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="check-circle-2" class="w-5 h-5 text-brand-600"></i>
+                  Certifications (<span id="count-certifications">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-certifications" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-certifications" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="certifications-list" class="space-y-3"></div>
+                <button type="button" onclick="addCertificationItem()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter une certification
+                </button>
+              </div>
+            </div>
+
+            <!-- Section 8: Custom Sections -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <button onclick="toggleSectionAccordion('custom')" class="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-slate-800 hover:bg-slate-50 transition">
+                <span class="flex items-center gap-2.5">
+                  <i data-lucide="layers" class="w-5 h-5 text-brand-600"></i>
+                  Sections Personnalisées (<span id="count-custom">0</span>)
+                </span>
+                <i data-lucide="chevron-down" id="acc-icon-custom" class="w-4 h-4 text-slate-400 transition-transform"></i>
+              </button>
+              <div id="acc-content-custom" class="px-5 pb-5 pt-1 space-y-4">
+                <div id="custom-sections-list" class="space-y-4"></div>
+                <button type="button" onclick="addCustomSection()" class="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-brand-500 text-brand-600 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 hover:bg-brand-50/50 transition">
+                  <i data-lucide="plus" class="w-4 h-4"></i> Ajouter une section personnalisée (ex: Bénévolat, Centres d'intérêt)
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- RIGHT PANE: LIVE PREVIEW -->
+        <div id="editor-right-pane" class="hidden lg:flex w-full lg:w-1/2 h-full flex-col preview-viewport overflow-hidden relative">
+          <div class="bg-slate-900/80 backdrop-blur border-b border-slate-700/60 px-4 py-2 flex items-center justify-between text-xs text-slate-300 z-10">
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-slate-200">Aperçu A4 en direct</span>
+              <span class="text-slate-400">• Sélectionnable & Liens actifs</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="changeZoom(-0.1)" class="p-1 rounded hover:bg-slate-800 text-slate-300" title="Zoom arrière">
+                <i data-lucide="zoom-out" class="w-4 h-4"></i>
+              </button>
+              <span id="zoom-level-text" class="font-mono text-xs w-10 text-center">100%</span>
+              <button onclick="changeZoom(0.1)" class="p-1 rounded hover:bg-slate-800 text-slate-300" title="Zoom avant">
+                <i data-lucide="zoom-in" class="w-4 h-4"></i>
+              </button>
+              <button onclick="resetZoom()" class="p-1 rounded hover:bg-slate-800 text-slate-300" title="100%">
+                <i data-lucide="maximize-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-auto flex items-start justify-center p-6" id="preview-wrapper">
+            <div id="preview-container" class="transition-transform duration-150 origin-top">
+              <iframe id="cv-preview-iframe" class="w-[210mm] min-h-[297mm] a4-paper-shadow rounded-sm bg-white border-0" title="Aperçu CV"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI ASSISTANT DRAWER -->
+        <div id="ai-assistant-drawer" class="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl border-l border-slate-200 z-50 transform translate-x-full transition-transform duration-200 ease-in-out flex flex-col">
+          <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-purple-50">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                <i data-lucide="bot" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Assistant Conversationnel IA</h3>
+                <p class="text-xs text-purple-700">Connecté à LiteLLM</p>
+              </div>
+            </div>
+            <button onclick="toggleAIAssistantDrawer(false)" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-1.5">
+            <button onclick="sendQuickPrompt('Peux-tu reformuler le résumé de mon profil pour le rendre plus percutant ?')" class="text-xs bg-white border border-slate-200 hover:border-purple-300 text-slate-700 px-2 py-1 rounded-md transition">
+              ✨ Booster mon profil
+            </button>
+            <button onclick="sendQuickPrompt('Quelles compétences clés manque-t-il à mon CV ?')" class="text-xs bg-white border border-slate-200 hover:border-purple-300 text-slate-700 px-2 py-1 rounded-md transition">
+              🔍 Compétences manquantes
+            </button>
+            <button onclick="sendQuickPrompt('Je suis développeur Full Stack avec 6 ans d\'expérience, aide-moi à structurer mon CV.')" class="text-xs bg-white border border-slate-200 hover:border-purple-300 text-slate-700 px-2 py-1 rounded-md transition">
+              🚀 Démarrer par discussion
+            </button>
+          </div>
+
+          <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+          <div class="p-3 border-t border-slate-200 bg-white">
+            <form id="ai-chat-form" onsubmit="onAIChatSubmit(event)" class="flex gap-2">
+              <input type="text" id="ai-chat-input" placeholder="Ex: J'ai travaillé chez OVH comme DevOps..." class="flex-1 text-xs sm:text-sm px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500">
+              <button type="submit" id="ai-chat-send-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center">
+                <i data-lucide="send" class="w-4 h-4"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. ADMIN BACKOFFICE VIEW -->
+    <div id="view-admin" class="view-panel flex-1 overflow-y-auto hidden">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900">Administration & Paramètres Système</h1>
+            <p class="text-slate-500 text-sm mt-1">Surveillance des consommations IA, paramétrage LiteLLM, utilisateurs et journaux d'audit.</p>
+          </div>
+          <button onclick="navigate('dashboard')" class="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold transition">
+            Retour
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Utilisateurs</div>
+            <div id="adm-users-count" class="text-3xl font-extrabold text-slate-900">-</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total CV Créés</div>
+            <div id="adm-resumes-count" class="text-3xl font-extrabold text-brand-600">-</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Requêtes LiteLLM</div>
+            <div id="adm-ai-requests" class="text-3xl font-extrabold text-purple-600">-</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Stockage Actif</div>
+            <div id="adm-db-type" class="text-sm font-bold text-emerald-600 mt-2">-</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 mb-8 shadow-xs">
+          <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="cpu" class="w-5 h-5 text-brand-600"></i> Configuration Passerelle IA LiteLLM
+          </h2>
+          <form onsubmit="onSaveAdminSettings(event)" class="space-y-4 max-w-xl">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Modèle LiteLLM Actif</label>
+              <select id="adm-model-select" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nom de la Plateforme</label>
+              <input type="text" id="adm-app-name" value="CV Builder IA" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl">
+            </div>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition">
+              Enregistrer les modifications
+            </button>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 mb-8 shadow-xs">
+          <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="users" class="w-5 h-5 text-slate-700"></i> Comptes Utilisateurs Locaux
+          </h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4">Utilisateur</th>
+                  <th class="py-3 px-4">Email</th>
+                  <th class="py-3 px-4">Rôle</th>
+                  <th class="py-3 px-4">Dernière Connexion</th>
+                  <th class="py-3 px-4">Action</th>
+                </tr>
+              </thead>
+              <tbody id="adm-users-table" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+          <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i data-lucide="activity" class="w-5 h-5 text-slate-700"></i> Journaux d'Audit Récents
+          </h2>
+          <div id="adm-audit-list" class="space-y-2 text-xs text-slate-600 max-h-64 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- MODALS                                                         -->
+  <!-- ============================================================== -->
+
+  <!-- NEW RESUME MODAL (3 CREATION METHODS) -->
+  <div id="modal-new-resume" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full overflow-hidden animate-fade-in">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 text-lg">Créer un nouveau CV</h3>
+        <button onclick="closeNewResumeModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Titre du CV</label>
+          <input type="text" id="new-cv-title" value="Mon CV Professionnel" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Modèle initial</label>
+            <select id="new-cv-template" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl">
+              <option value="modern">Moderne</option>
+              <option value="classic">Classique</option>
+              <option value="minimalist">Minimaliste</option>
+              <option value="professional">Professionnel</option>
+              <option value="creative">Créatif</option>
+              <option value="two-column">Deux colonnes</option>
+              <option value="ats">ATS Standard</option>
+              <option value="photo">Avec Photo</option>
+              <option value="no-photo">Sans Photo</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Langue</label>
+            <select id="new-cv-lang" class="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl">
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+        <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+          <input type="checkbox" id="new-cv-from-master" class="rounded text-brand-600">
+          Pré-remplir avec mon Profil Professionnel de Référence (si existant)
+        </label>
+
+        <div class="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button onclick="confirmCreateResume('manual')" class="p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 text-left transition">
+            <div class="font-bold text-xs text-brand-700 mb-1">1. Manuel</div>
+            <div class="text-[11px] text-slate-500">Éditeur complet guidé</div>
+          </button>
+          <button onclick="closeNewResumeModal(); openImportModal();" class="p-3 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 text-left transition">
+            <div class="font-bold text-xs text-indigo-700 mb-1">2. Import PDF / In</div>
+            <div class="text-[11px] text-slate-500">Extraction LiteLLM</div>
+          </button>
+          <button onclick="confirmCreateResume('ai')" class="p-3 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/40 text-left transition">
+            <div class="font-bold text-xs text-purple-700 mb-1">3. Assistant IA</div>
+            <div class="text-[11px] text-slate-500">Discussion interactive</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORT MODAL (PDF / LINKEDIN + REVIEW) -->
+  <div id="modal-import" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full overflow-hidden animate-fade-in max-h-[90vh] flex flex-col">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+          <i data-lucide="upload-cloud" class="w-5 h-5 text-brand-600"></i>
+          Importer un CV (PDF / LinkedIn)
+        </h3>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1">
+        <div class="flex border-b border-slate-200 mb-6">
+          <button id="import-tab-pdf" onclick="switchImportModalTab('pdf')" class="px-4 py-2 border-b-2 border-brand-600 font-bold text-brand-600 text-sm">
+            Import PDF Intelligent
+          </button>
+          <button id="import-tab-linkedin" onclick="switchImportModalTab('linkedin')" class="px-4 py-2 border-b-2 border-transparent font-medium text-slate-500 hover:text-slate-800 text-sm">
+            Profil LinkedIn
+          </button>
+        </div>
+
+        <!-- PDF TAB -->
+        <div id="import-content-pdf">
+          <div id="pdf-drop-zone" onclick="document.getElementById('pdf-file-input').click()" class="border-2 border-dashed border-slate-300 hover:border-brand-500 rounded-2xl p-8 text-center cursor-pointer bg-slate-50 hover:bg-brand-50/20 transition">
+            <input type="file" id="pdf-file-input" accept=".pdf,application/pdf" class="hidden" onchange="handlePdfFileSelect(event)">
+            <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="file-text" class="w-6 h-6"></i>
+            </div>
+            <p class="font-semibold text-slate-800 text-sm">Cliquez pour sélectionner votre CV PDF</p>
+            <p class="text-xs text-slate-400 mt-1">Extraction structurée via LiteLLM (Max: 10 Mo)</p>
+          </div>
+
+          <div id="pdf-import-loading" class="hidden text-center py-6">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-500 border-t-transparent mb-3"></div>
+            <p class="font-semibold text-slate-800 text-sm">Analyse et extraction structurée en cours...</p>
+            <p class="text-xs text-slate-500 mt-1">Interrogation du modèle LiteLLM</p>
+          </div>
+
+          <!-- Extracted Data Validation Step -->
+          <div id="pdf-import-review" class="hidden space-y-4">
+            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold">
+              ✅ Extraction terminée ! Vérifiez les informations détectées avant de créer le CV :
+            </div>
+            <div id="pdf-uncertain-warnings" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800"></div>
+            <div id="pdf-review-summary" class="text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5"></div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button onclick="closeImportModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600">Annuler</button>
+              <button onclick="confirmSaveImportedPdf()" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">
+                Valider et Ouvrir dans l'Éditeur
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LINKEDIN TAB -->
+        <div id="import-content-linkedin" class="hidden space-y-4">
+          <p class="text-xs text-slate-600">
+            Pour garantir une importation fidèle dans le respect des conditions d'accès de LinkedIn :
+          </p>
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 space-y-2">
+            <p class="font-bold">Méthode officielle recommandée (PDF LinkedIn) :</p>
+            <ol class="list-decimal pl-4 space-y-1">
+              <li>Rendez-vous sur votre profil <strong>LinkedIn</strong>.</li>
+              <li>Cliquez sur le bouton <strong>« Plus »</strong> sous votre bannière.</li>
+              <li>Sélectionnez <strong>« Enregistrer au format PDF »</strong>.</li>
+              <li>Déposez le PDF obtenu dans l'onglet <strong>Import PDF Intelligent</strong>.</li>
+            </ol>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Vérifier une URL de profil LinkedIn :</label>
+            <div class="flex gap-2">
+              <input type="url" id="linkedin-url-input" placeholder="https://www.linkedin.com/in/..." class="flex-1 text-sm px-3 py-2 border border-slate-200 rounded-xl">
+              <button onclick="submitLinkedInUrl()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition">
+                Analyser
+              </button>
+            </div>
+            <div id="linkedin-url-feedback" class="mt-3 text-xs hidden"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERSIONS HISTORY MODAL -->
+  <div id="modal-versions" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden animate-fade-in">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <i data-lucide="history" class="w-5 h-5 text-brand-600"></i>
+          Historique des Versions
+        </h3>
+        <button onclick="closeVersionsModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <button onclick="saveManualVersionSnapshot()" class="w-full py-2 px-3 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs flex items-center justify-center gap-1.5">
+          <i data-lucide="bookmark-plus" class="w-4 h-4"></i> Créer un point de sauvegarde maintenant
+        </button>
+        <div id="versions-list" class="space-y-2 max-h-64 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

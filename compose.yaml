@@ -1,0 +1,57 @@
+services:
+  cvbuilder-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cvbuilder-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      NODE_ENV: "production"
+      APP_URL: "${APP_URL:-https://cv.oussamma.tn}"
+      SSO_BASE_URL: "${SSO_BASE_URL:-https://sso-a.oussamma.tn}"
+      SSO_CLIENT_ID: "${SSO_CLIENT_ID:-client_cvbuilder_app}"
+      SSO_CLIENT_SECRET: "${SSO_CLIENT_SECRET}"
+      SSO_REDIRECT_URI: "${SSO_REDIRECT_URI:-https://cv.oussamma.tn/auth/callback}"
+      SESSION_SECRET: "${SESSION_SECRET}"
+      LITELLM_BASE_URL: "${LITELLM_BASE_URL:-https://ai.oussamma.tn/v1}"
+      LITELLM_API_KEY: "${LITELLM_API_KEY}"
+      LITELLM_DEFAULT_MODEL: "${LITELLM_DEFAULT_MODEL:-gemini/gemini-3.1-flash-lite-preview}"
+      DATABASE_URL: "postgresql://cvbuilder:${POSTGRES_PASSWORD:-cvbuilder_pass}@cvbuilder-postgres:5432/cvbuilder"
+      DATA_DIR: "/app/data"
+    volumes:
+      - cvbuilder_app_data:/app/data
+    depends_on:
+      cvbuilder-postgres:
+        condition: service_healthy
+    networks:
+      - cvbuilder_internal
+
+  cvbuilder-postgres:
+    image: postgres:16-alpine
+    container_name: cvbuilder-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cvbuilder
+      POSTGRES_USER: cvbuilder
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-cvbuilder_pass}"
+    volumes:
+      - cvbuilder_pg_data:/var/lib/postgresql/data
+      - ./src/storage/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cvbuilder -d cvbuilder"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cvbuilder_internal
+
+volumes:
+  cvbuilder_app_data:
+  cvbuilder_pg_data:
+
+networks:
+  cvbuilder_internal:
+    driver: bridge
