@@ -18,6 +18,7 @@ import { ResumeLanguageService, SUPPORTED_LANGUAGES } from './ai/language-servic
 import { ResumeTailorService } from './ai/tailor-service.js';
 import { DocxGeneratorService } from './export/docx-generator.js';
 import { TEMPLATES, renderTemplateHtml } from './templates/registry.js';
+import { trackCvEvent } from './supervisor.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -259,6 +260,14 @@ app.post('/api/resumes', requireAuth, async (req, res) => {
     });
 
     await db.addAuditLog(req.user.id, 'resume_create', { id: newCv.id, title: newCv.title }, req.ip);
+    trackCvEvent({
+      eventType: 'cv.created',
+      actorSub: req.user.id,
+      actorEmail: req.user.email,
+      resourceId: newCv.id,
+      resourceName: newCv.title,
+      metadata: { template: newCv.template_id, language: newCv.language },
+    });
     res.status(201).json(newCv);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -295,6 +304,12 @@ app.delete('/api/resumes/:id', requireAuth, async (req, res) => {
   try {
     await db.deleteResume(req.user.id, req.params.id);
     await db.addAuditLog(req.user.id, 'resume_delete', { id: req.params.id }, req.ip);
+    trackCvEvent({
+      eventType: 'cv.deleted',
+      actorSub: req.user.id,
+      actorEmail: req.user.email,
+      resourceId: req.params.id,
+    });
     res.json({ success: true, message: 'CV supprimé avec succès' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -668,6 +683,14 @@ app.get('/api/export/:resumeId/pdf', requireAuth, async (req, res) => {
     const fontFamily = req.query.font || dataToExport?.style?.fontFamily || undefined;
 
     await db.addAuditLog(req.user.id, 'export_pdf', { resumeId: resume.id, lang: requestedLang }, req.ip);
+    trackCvEvent({
+      eventType: 'cv.exported_pdf',
+      actorSub: req.user.id,
+      actorEmail: req.user.email,
+      resourceId: resume.id,
+      resourceName: resume.title,
+      metadata: { template: templateId, language: requestedLang },
+    });
 
     const html = renderTemplateHtml(templateId, dataToExport, {
       primaryColor,
