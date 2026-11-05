@@ -42,7 +42,7 @@ export class OIDCAuthService {
   }
 
   static getAuthorizationUrl(redirectUri, state, code_challenge) {
-    const authEndpoint = `${config.sso.baseUrl}/oauth/authorize`;
+    const authEndpoint = `${config.sso.baseUrl}/protocol/openid-connect/auth`;
     const url = new URL(authEndpoint);
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', config.sso.clientId);
@@ -55,7 +55,7 @@ export class OIDCAuthService {
   }
 
   static async exchangeCodeForToken(code, code_verifier, redirectUri) {
-    const tokenEndpoint = `${config.sso.baseUrl}/oauth/token`;
+    const tokenEndpoint = `${config.sso.baseUrl}/protocol/openid-connect/token`;
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: config.sso.clientId,
@@ -84,7 +84,7 @@ export class OIDCAuthService {
   }
 
   static async fetchUserInfo(accessToken) {
-    const userinfoEndpoint = `${config.sso.baseUrl}/oauth/userinfo`;
+    const userinfoEndpoint = `${config.sso.baseUrl}/protocol/openid-connect/userinfo`;
     const res = await fetch(userinfoEndpoint, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
