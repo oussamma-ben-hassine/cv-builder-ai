@@ -5,11 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: cvbuilder-app
     restart: unless-stopped
+    expose:
+      - "3000"
     environment:
       PORT: "3000"
       NODE_ENV: "production"
       APP_URL: "${APP_URL:-https://cv.oussamma.tn}"
-      SSO_BASE_URL: "${SSO_BASE_URL:-https://sso-a.oussamma.tn}"
+      SSO_BASE_URL: "${SSO_BASE_URL:-https://sso.oussamma.tn/realms/platform}"
       SSO_CLIENT_ID: "${SSO_CLIENT_ID:-client_cvbuilder_app}"
       SSO_CLIENT_SECRET: "${SSO_CLIENT_SECRET}"
       SSO_REDIRECT_URI: "${SSO_REDIRECT_URI:-https://cv.oussamma.tn/auth/callback}"
